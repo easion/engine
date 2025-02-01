@@ -1,0 +1,17 @@
+diff --git a/src/base/utils.cc b/src/base/utils.cc
+index 82386fa..b544814 100644
+--- a/src/base/utils.cc
++++ b/src/base/utils.cc
+@@ -205,9 +205,10 @@ void UnsetEnv(const std::string& key) {
+ }
+ 
+ void Daemonize(std::function<int()> parent_cb) {
+-#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) ||   \
++#if (PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) ||   \
+     PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) || \
+-    PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE)
++    PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE)) && !defined(TARGET_OS_TV)
++
+   Pipe pipe = Pipe::Create(Pipe::kBothBlock);
+   pid_t pid;
+   switch (pid = fork()) {
