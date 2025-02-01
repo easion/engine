@@ -620,6 +620,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
 
 - (UITextRange*)lineEnclosingPosition:(UITextPosition*)position
                           inDirection:(UITextDirection)direction {
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV) 
   // TODO(hellohuanlin): remove iOS 17 check. The same logic should apply to older iOS version.
   if (@available(iOS 17.0, *)) {
     // According to the API doc if the text position is at a text-unit boundary, it is considered
@@ -632,7 +633,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
       return nil;
     }
   }
-
+#endif
   // Gets the first line break position after the input position.
   NSString* textAfter = [_textInputView
       textInRange:[_textInputView textRangeFromPosition:position
@@ -814,7 +815,9 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
   bool _isFloatingCursorActive;
   CGPoint _floatingCursorOffset;
   bool _enableInteractiveSelection;
+  #if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   UITextInteraction* _textInteraction API_AVAILABLE(ios(13.0));
+  #endif
 }
 
 @synthesize tokenizer = _tokenizer;
@@ -854,20 +857,24 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
     _smartDashesType = UITextSmartDashesTypeYes;
     _selectionRects = [[NSArray alloc] init];
 
+  #if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
     if (@available(iOS 14.0, *)) {
       UIScribbleInteraction* interaction = [[UIScribbleInteraction alloc] initWithDelegate:self];
       [self addInteraction:interaction];
     }
+	#endif
   }
 
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   if (@available(iOS 16.0, *)) {
     _editMenuInteraction = [[UIEditMenuInteraction alloc] initWithDelegate:self];
     [self addInteraction:_editMenuInteraction];
   }
-
+#endif
   return self;
 }
 
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
 - (UIMenu*)editMenuInteraction:(UIEditMenuInteraction*)interaction
           menuForConfiguration:(UIEditMenuConfiguration*)configuration
               suggestedActions:(NSArray<UIMenuElement*>*)suggestedActions API_AVAILABLE(ios(16.0)) {
@@ -897,6 +904,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
 - (void)hideEditMenu API_AVAILABLE(ios(16.0)) {
   [self.editMenuInteraction dismissMenu];
 }
+#endif
 
 - (void)configureWithDictionary:(NSDictionary*)configuration {
   NSDictionary* inputType = configuration[kKeyboardType];
@@ -1001,6 +1009,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
   _hasPlaceholder = NO;
 }
 
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
 - (UITextInteraction*)textInteraction API_AVAILABLE(ios(13.0)) {
   if (!_textInteraction) {
     _textInteraction = [UITextInteraction textInteractionForMode:UITextInteractionModeEditable];
@@ -1008,8 +1017,10 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
   }
   return _textInteraction;
 }
+#endif
 
 - (void)setTextInputState:(NSDictionary*)state {
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   if (@available(iOS 13.0, *)) {
     // [UITextInteraction willMoveToView:] sometimes sets the textInput's inputDelegate
     // to nil. This is likely a bug in UIKit. In order to inform the keyboard of text
@@ -1020,6 +1031,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
       [self addInteraction:self.textInteraction];
     }
   }
+#endif
 
   NSString* newText = state[@"text"];
   BOOL textChanged = ![self.text isEqualToString:newText];
@@ -1056,12 +1068,13 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
   if (textChanged) {
     [self.inputDelegate textDidChange:self];
   }
-
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   if (@available(iOS 13.0, *)) {
     if (_textInteraction) {
       [self removeInteraction:_textInteraction];
     }
   }
+#endif
 }
 
 // Forward touches to the viewResponder to allow tapping inside the UITextField as normal.
@@ -1128,6 +1141,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
 
 // Checks whether Scribble features are possibly available – meaning this is an iPad running iOS
 // 14 or higher.
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
 - (BOOL)isScribbleAvailable {
   if (@available(iOS 14.0, *)) {
     if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
@@ -1136,7 +1150,9 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
   }
   return NO;
 }
+#endif
 
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
 - (void)scribbleInteractionWillBeginWriting:(UIScribbleInteraction*)interaction
     API_AVAILABLE(ios(14.0)) {
   _scribbleInteractionStatus = FlutterScribbleInteractionStatusStarted;
@@ -1158,6 +1174,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
     API_AVAILABLE(ios(14.0)) {
   return NO;
 }
+#endif
 
 #pragma mark - UIResponder Overrides
 
@@ -1181,6 +1198,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
 }
 
 - (BOOL)canPerformAction:(SEL)action withSender:(id)sender {
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   if (action == @selector(paste:)) {
     // Forbid pasting images, memojis, or other non-string content.
     return [UIPasteboard generalPasteboard].hasStrings;
@@ -1190,25 +1208,32 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
   } else if (action == @selector(selectAll:)) {
     return self.hasText;
   }
+#endif
   return [super canPerformAction:action withSender:sender];
 }
 
 #pragma mark - UIResponderStandardEditActions Overrides
 
 - (void)cut:(id)sender {
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   [UIPasteboard generalPasteboard].string = [self textInRange:_selectedTextRange];
   [self replaceRange:_selectedTextRange withText:@""];
+#endif
 }
 
 - (void)copy:(id)sender {
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   [UIPasteboard generalPasteboard].string = [self textInRange:_selectedTextRange];
+#endif
 }
 
 - (void)paste:(id)sender {
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV) 
   NSString* pasteboardString = [UIPasteboard generalPasteboard].string;
   if (pasteboardString != nil) {
     [self insertText:pasteboardString];
   }
+#endif
 }
 
 - (void)delete:(id)sender {
@@ -1708,6 +1733,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
 
   if (_scribbleInteractionStatus == FlutterScribbleInteractionStatusNone &&
       _scribbleFocusStatus == FlutterScribbleFocusStatusUnfocused) {
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV) 
     if (@available(iOS 17.0, *)) {
       // Disable auto-correction highlight feature for iOS 17+.
       // In iOS 17+, whenever a character is inserted or deleted, the system will always query
@@ -1723,8 +1749,9 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
                                                end:end
                                         withClient:_textInputClient];
     }
+#endif
   }
-
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV) 
   // The iOS 16 system highlight does not repect the height returned by `firstRectForRange`
   // API (unlike iOS 17). So we return CGRectZero to hide it (unless if scribble is enabled).
   // To support scribble's advanced gestures (e.g. insert a space with a vertical bar),
@@ -1734,7 +1761,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
   } else if (![self isScribbleAvailable]) {
     return CGRectZero;
   }
-
+#endif
   NSUInteger first = start;
   if (end < start) {
     first = end;
@@ -2357,20 +2384,23 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
     _inputHider = [[FlutterTextInputViewAccessibilityHider alloc] init];
     _scribbleElements = [[NSMutableDictionary alloc] init];
     _keyboardViewContainer = [[UIView alloc] init];
-
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(handleKeyboardWillShow:)
                                                  name:UIKeyboardWillShowNotification
                                                object:nil];
+#endif
   }
 
   return self;
 }
 
 - (void)handleKeyboardWillShow:(NSNotification*)notification {
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   NSDictionary* keyboardInfo = [notification userInfo];
   NSValue* keyboardFrameEnd = [keyboardInfo valueForKey:UIKeyboardFrameEndUserInfoKey];
   _keyboardRect = [keyboardFrameEnd CGRectValue];
+#endif
 }
 
 - (void)dealloc {
@@ -2555,6 +2585,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
   if (!self.activeView.isFirstResponder) {
     return NO;
   }
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   NSDictionary<NSString*, NSNumber*>* encodedTargetRect = args[@"targetRect"];
   CGRect globalTargetRect = CGRectMake(
       [encodedTargetRect[@"x"] doubleValue], [encodedTargetRect[@"y"] doubleValue],
@@ -2562,15 +2593,21 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
   CGRect localTargetRect = [self.hostView convertRect:globalTargetRect toView:self.activeView];
   [self.activeView showEditMenuWithTargetRect:localTargetRect];
   return YES;
+#else
+  return NO;
+#endif
 }
 
 - (void)hideEditMenu {
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   [self.activeView hideEditMenu];
+#endif
 }
 
 - (void)setEditableSizeAndTransform:(NSDictionary*)dictionary {
   NSArray* transform = dictionary[@"transform"];
   [_activeView setEditableTransform:transform];
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV) 
   const int leftIndex = 12;
   const int topIndex = 13;
   if ([_activeView isScribbleAvailable]) {
@@ -2596,6 +2633,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
           CGRectMake([transform[leftIndex] intValue], [transform[topIndex] intValue], 0, 0);
     }
   }
+#endif
 }
 
 - (void)updateMarkedRect:(NSDictionary*)dictionary {
@@ -2630,12 +2668,14 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
 }
 
 - (void)startLiveTextInput {
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   if (@available(iOS 15.0, *)) {
     if (_activeView == nil || !_activeView.isFirstResponder) {
       return;
     }
     [_activeView captureTextFromCamera:nil];
   }
+#endif
 }
 
 - (void)showTextInput {
@@ -2942,6 +2982,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
 }
 
 #pragma mark UIIndirectScribbleInteractionDelegate
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
 
 - (BOOL)indirectScribbleInteraction:(UIIndirectScribbleInteraction*)interaction
                    isElementFocused:(UIScribbleElementIdentifier)elementIdentifier
@@ -3018,11 +3059,13 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
                         completion(elements);
                       }];
 }
+#endif
 
 #pragma mark - Methods related to Scribble support
 
 - (void)setUpIndirectScribbleInteraction:(id<FlutterViewResponder>)viewResponder {
   if (_viewResponder != viewResponder) {
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
     if (@available(iOS 14.0, *)) {
       UIView* parentView = viewResponder.view;
       if (parentView != nil) {
@@ -3031,6 +3074,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
         [parentView addInteraction:scribbleInteraction];
       }
     }
+#endif
   }
   _viewResponder = viewResponder;
 }

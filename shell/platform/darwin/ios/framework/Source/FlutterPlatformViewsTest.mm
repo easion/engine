@@ -4,7 +4,9 @@
 
 #import <OCMock/OCMock.h>
 #import <UIKit/UIKit.h>
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
 #import <WebKit/WebKit.h>
+#endif
 #import <XCTest/XCTest.h>
 #include "fml/synchronization/count_down_latch.h"
 #include "shell/platform/darwin/ios/framework/Source/platform_views_controller.h"

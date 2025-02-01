@@ -14,6 +14,7 @@
 
 namespace impeller {
 
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
 API_AVAILABLE(ios(14.0), macos(11.0))
 static NSString* MTLCommandEncoderErrorStateToString(
     MTLCommandEncoderErrorState state) {
@@ -31,6 +32,7 @@ static NSString* MTLCommandEncoderErrorStateToString(
   }
   return @"unknown";
 }
+#endif
 
 static NSString* MTLCommandBufferErrorToString(MTLCommandBufferError code) {
   switch (code) {
@@ -84,7 +86,7 @@ static bool LogMTLCommandBufferErrorIfPresent(id<MTLCommandBuffer> buffer) {
                   .UTF8String
            << std::endl;
   }
-
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   if (@available(iOS 14.0, macOS 11.0, *)) {
     NSArray<id<MTLCommandBufferEncoderInfo>>* infos =
         buffer.error.userInfo[MTLCommandBufferEncoderInfoErrorKey];
@@ -108,14 +110,14 @@ static bool LogMTLCommandBufferErrorIfPresent(id<MTLCommandBuffer> buffer) {
       }
     }
   }
-
+#endif
   stream << "<<<<<<<";
   VALIDATION_LOG << stream.str();
   return false;
 }
 
 static id<MTLCommandBuffer> CreateCommandBuffer(id<MTLCommandQueue> queue) {
-#ifndef FLUTTER_RELEASE
+#if !defined(FLUTTER_RELEASE) && !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   if (@available(iOS 14.0, macOS 11.0, *)) {
     auto desc = [[MTLCommandBufferDescriptor alloc] init];
     // Degrades CPU performance slightly but is well worth the cost for typical
