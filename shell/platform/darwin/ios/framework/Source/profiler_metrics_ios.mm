@@ -45,10 +45,12 @@ T ClearValue() {
   return nullptr;
 }
 
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
 template <>
 io_object_t ClearValue<io_object_t>() {
   return 0;
 }
+#endif
 
 template <typename T>
 /// Generic RAII wrapper like unique_ptr but gives access to its handle.
@@ -83,6 +85,8 @@ class Scoped {
   Deleter deleter_;
 };
 
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
+
 void DeleteCF(CFMutableDictionaryRef value) {
   CFRelease(value);
 }
@@ -91,7 +95,7 @@ void DeleteIO(io_object_t value) {
   IOObjectRelease(value);
 }
 
-#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
+
 std::optional<GpuUsageInfo> FindGpuUsageInfo(io_iterator_t iterator) {
   for (Scoped<io_registry_entry_t> regEntry(IOIteratorNext(iterator), DeleteIO); regEntry.get();
        regEntry.reset(IOIteratorNext(iterator))) {
