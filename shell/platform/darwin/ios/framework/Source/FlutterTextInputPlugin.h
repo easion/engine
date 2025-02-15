@@ -157,6 +157,7 @@ FLUTTER_DARWIN_EXPORT
 @property(nonatomic) UIKeyboardAppearance keyboardAppearance;
 @property(nonatomic) UIKeyboardType keyboardType;
 @property(nonatomic) UIReturnKeyType returnKeyType;
+@property(nonatomic, copy) NSString * hintText;
 @property(nonatomic, getter=isSecureTextEntry) BOOL secureTextEntry;
 @property(nonatomic, getter=isEnableDeltaModel) BOOL enableDeltaModel;
 @property(nonatomic) UITextSmartQuotesType smartQuotesType API_AVAILABLE(ios(11.0));

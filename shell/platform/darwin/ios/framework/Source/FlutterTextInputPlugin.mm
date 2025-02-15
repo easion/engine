@@ -7,6 +7,7 @@
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#import <objc/runtime.h>
 
 #include "unicode/uchar.h"
 
@@ -907,6 +908,8 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
 #endif
 
 - (void)configureWithDictionary:(NSDictionary*)configuration {
+  //NSLog(@"dpp TextInput Configuration: %@", configuration);
+
   NSDictionary* inputType = configuration[kKeyboardType];
   NSString* keyboardAppearance = configuration[kKeyboardAppearance];
   NSDictionary* autofill = configuration[kAutofillProperties];
@@ -917,6 +920,15 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
   _isSystemKeyboardEnabled = ShouldShowSystemKeyboard(inputType);
   self.keyboardType = ToUIKeyboardType(inputType);
   self.returnKeyType = ToUIReturnKeyType(configuration[kInputAction]);
+
+  NSString *hint = configuration[@"hintText"];
+  if (!hint && [configuration[@"autofill"] isKindOfClass:[NSDictionary class]]) {
+    hint = configuration[@"autofill"][@"hintText"];
+  }
+  if ([hint isKindOfClass:[NSString class]]) {
+    self.hintText = hint;
+  }
+
   self.autocapitalizationType = ToUITextAutoCapitalizationType(configuration);
   _enableInteractiveSelection = [configuration[kEnableInteractiveSelection] boolValue];
   NSString* smartDashesType = configuration[kSmartDashesType];
@@ -2420,6 +2432,8 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
   NSString* method = call.method;
+
+  //NSLog(@"dpp handleMethodCall %@", method);
   id args = call.arguments;
   if ([method isEqualToString:kShowMethod]) {
     [self showTextInput];
@@ -2515,6 +2529,7 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
 - (void)showKeyboardAndRemoveScreenshot {
   [UIView setAnimationsEnabled:NO];
   [_cachedFirstResponder becomeFirstResponder];
+  //NSLog(@"dpp showKeyboardAndRemoveScreenshot becomeFirstResponder");
   // UIKit does not immediately access the areAnimationsEnabled Boolean so a delay is needed before
   // returned
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, kKeyboardAnimationDelaySeconds * NSEC_PER_SEC),
@@ -2675,8 +2690,68 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
     }
     [_activeView captureTextFromCamera:nil];
   }
+#else
 #endif
 }
+
+#if (defined(TARGET_OS_TV) && TARGET_OS_TV)
+
+- (void)performDone {
+  
+    switch (self.activeView.returnKeyType) {
+        case UIReturnKeyNext:
+            [_textInputDelegate flutterTextInputView:self.activeView
+                performAction:FlutterTextInputActionNext
+                withClient:self.activeView.textInputClient];
+            break;
+            
+        case UIReturnKeyDone:
+            [_textInputDelegate flutterTextInputView:self.activeView
+                performAction:FlutterTextInputActionDone
+                withClient:self.activeView.textInputClient];
+            break;
+
+        default:
+            NSLog(@"unknow returnKeyType: %d", (int)self.activeView.returnKeyType);
+            [_textInputDelegate flutterTextInputView:self.activeView
+                performAction:FlutterTextInputActionDone
+                withClient:self.activeView.textInputClient];
+            break;
+    }
+
+}
+
+- (void)setNewText:(NSString *)text {
+    if ([text hasSuffix:@"\n"]) {
+        text = [text stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+    }
+    else{
+      //NSLog(@"dpp normal text: %@", text);
+    } 
+    
+    NSMutableDictionary* state = [NSMutableDictionary dictionary];
+    [state setObject:text forKey:@"text"];
+    [state setObject:@(text.length) forKey:@"selectionBase"];
+    [state setObject:@(text.length) forKey:@"selectionExtent"];
+    [state setObject:@(-1) forKey:@"composingBase"];
+    [state setObject:@(-1) forKey:@"composingExtent"];
+    
+    [self.activeView setTextInputState:state];
+    [self.activeView updateEditingState];
+	
+    if ([text hasSuffix:@"\n"]) {
+        text = [text stringByAppendingString:@"\n"];
+        [_textInputDelegate flutterTextInputView:self.activeView
+            didResignFirstResponderWithTextInputClient:self.activeView.textInputClient];
+    }
+}
+
+- (void)textDidChange:(NSNotification *)notification {
+    UITextField *textField = notification.object;
+    NSString *text = textField.text;
+	[self setNewText:text];
+}
+#endif
 
 - (void)showTextInput {
   _activeView.viewResponder = _viewResponder;
@@ -2697,7 +2772,53 @@ static BOOL IsSelectionRectBoundaryCloserToPoint(CGPoint point,
                                        userInfo:nil
                                         repeats:NO];
   }
+
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   [_activeView becomeFirstResponder];
+#else
+    
+	if (@available(tvOS 12.0, *)) {
+	 
+		NSString *placeholder = self.activeView.hintText ?: @"Input for ScreenSpot TV";
+		UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"Text Input Pad"  // Empty space as title
+									   message:@""
+								preferredStyle:UIAlertControllerStyleAlert];
+		
+		[alertController addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
+			textField.placeholder = placeholder;
+			[[NSNotificationCenter defaultCenter] addObserver:self
+							 selector:@selector(textDidChange:)
+								 name:UITextFieldTextDidChangeNotification
+							   object:textField];
+							   
+		}];
+		
+		// Add a hidden action to satisfy the requirement
+		UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"OK"
+										style:UIAlertActionStyleDefault
+									  handler:^(UIAlertAction * _Nonnull action) {
+			NSString *inputText = alertController.textFields.firstObject.text;
+			inputText = [inputText stringByAppendingString:@"\n"];
+			//NSLog(@"dpp submit tvos keyboard: %@", inputText);
+			[self performDone];
+		}];
+		[alertController addAction:okAction];
+		
+		UIViewController *rootViewController = [UIApplication sharedApplication].keyWindow.rootViewController;
+		if (rootViewController) {
+			dispatch_async(dispatch_get_main_queue(), ^{
+				[rootViewController presentViewController:alertController
+											  animated:YES
+											completion:^{
+					//[alertController.textFields.firstObject becomeFirstResponder];
+				}];
+			});
+		}
+		
+	} else {
+		NSLog(@"tvOS was not supported");
+	}
+#endif
 }
 
 - (void)enableActiveViewAccessibility {

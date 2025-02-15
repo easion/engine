@@ -856,7 +856,7 @@ static void SendFakeTouchEvent(UIScreen* screen,
 
 
 - (void)sendGamepadTouchesWithType:(NSString*)type x:(float)x y:(float)y {
-   NSLog(@"sendGamepadTouchesWithType: %f,%f", x, y);
+   //NSLog(@"sendGamepadTouchesWithType: %f,%f", x, y);
 
     NSMutableDictionary* dictionary = [@{
         @"type": type,
